@@ -5,12 +5,14 @@ import pandas as pd
 from scipy.interpolate import interp1d
 
 
-# Using the element Table in rdkit, pt_dict is the only thing to be used in this task
+# Using the element Table in rdkit, the pt_dict out of the comment part is from the code below
+
 # from rdkit import Chem
 # pt = Chem.GetPeriodicTable()
 # pt_dict = dict()
 # for i in range(1,109):
 #     pt_dict[i] = pt.GetElementSymbol(i)
+
 pt_dict = {1: 'H',
  2: 'He',
  3: 'Li',
@@ -120,33 +122,43 @@ pt_dict = {1: 'H',
  107: 'Bh',
  108: 'Hs'}
 
-def extract(cont,beginl,endl,num): #extract xyz information and SCF energy information, process xyz
+def extract(cont,beginl,endl,num): #extract and process xyz and SCF energy information in IRC out
+# cont::list/["line_1","line_2"..."line_x"] the content of file to be processedd
+# beginl::int/ begin line of the target part
+# endl::int/ end line of the targer part
+# num::int/ The index of the irc structure to be processed
+
     # Gaussian output args
     geom_segl = "---------------------------------------------------------------------"
     geom_begin = "Number     Number       Type             X           Y           Z"
     
+    # Args define
     raw_xyz = []
     processed_xyz = []
     scf = None
     geom_flag = 0
     idx = beginl
+
+    # detect the line of information (xyz and scf)
     while idx<=endl:
         temp = cont[idx].strip("\n").strip()
-        if geom_flag==0:
+        if geom_flag==0: # in front of xyz
             if temp==geom_begin:
                 geom_flag = 1 #recieving
                 idx+=1
-        elif geom_flag==1:
+        elif geom_flag==1: # in xyz
             if temp!=geom_segl:
                 raw_xyz.append(temp)
             else:
                 geom_flag=2
-        else:
+        else: # behind xyz
             if temp[0:8]=="SCF Done":
                 scf = float(temp.split()[4])
                 break
         idx+=1
-    ele_id_lis = []
+
+    # process xyz
+    ele_id_lis = [] # record the order of the elements (written in numbers in out file)
     for item in raw_xyz:
         temp = item.split()
         ele = pt_dict[int(temp[1])]
@@ -154,24 +166,33 @@ def extract(cont,beginl,endl,num): #extract xyz information and SCF energy infor
         new_lis = [ele]+temp[3:]+["\n"]
         processed_xyz.append("    ".join(new_lis))
     processed_xyz = [str(len(raw_xyz))+"\n","IRC:"+str(num)+"\n"]+processed_xyz
+
+# raw_xyz::list/ raw xyz information in out file
+# processed_xyz::list/ xyz information in the formal .xyz style
+# ele_id_lis::list/ elements with order of the molecule
     return raw_xyz,processed_xyz,scf,ele_id_lis
 
 def compute_internal(xyz_lis,args,numpy_flag=False): # compute internal arguments for a given xyz(numpy based)
-    new_xyzlis = xyz_lis[1:]
+# xyz_lis::list/ xyz information in formal .xyz style(or numpy format)
+# args::list/[(arg1),(arg2)] bond args to be calculated 
+# numpy_flag::bool/ False:formal .xyz style; True:numpy format
+
     res = []
     for item in args:
-        if len(item)==2: # Bond Length
+        if len(item)==2: # Bond Distance
             if numpy_flag:
                 vec1 = xyz_lis[item[0]-1]
                 vec2 = xyz_lis[item[1]-1]
             else:
+                new_xyzlis = xyz_lis[1:]
                 xyz1 = new_xyzlis[item[0]].split()[-3:]
                 xyz2 = new_xyzlis[item[1]].split()[-3:]
                 vec1 = np.array(list(map(float,xyz1)))
                 vec2 = np.array(list(map(float,xyz2)))
             dist = np.linalg.norm(vec1-vec2)
             res.append(dist)
-        elif len(item)==3:
+
+        elif len(item)==3: # Bond Angle
             if numpy_flag:
                 vec1 = xyz_lis[item[0]-1]-xyz_lis[item[1]-1]
                 vec2 = xyz_lis[item[2]-1]-xyz_lis[item[1]-1]
@@ -183,7 +204,8 @@ def compute_internal(xyz_lis,args,numpy_flag=False): # compute internal argument
                 vec2 = np.array(list(map(float,xyz3)))-np.array(list(map(float,xyz2)))
             angle = np.arccos(vec1.dot(vec2)/(np.linalg.norm(vec1) * np.linalg.norm(vec2)))/np.pi*180
             res.append(angle)
-        elif len(item)==4:
+
+        elif len(item)==4: # Dihedral Angle
             if numpy_flag:
                 vec1 = xyz_lis[item[0]-1]-xyz_lis[item[1]-1]
                 vec2 = xyz_lis[item[1]-1]-xyz_lis[item[2]-1]
@@ -202,17 +224,31 @@ def compute_internal(xyz_lis,args,numpy_flag=False): # compute internal argument
             dihe = np.sign(cross3.dot(vec2))*np.arccos(cross1.dot(cross2)/(np.linalg.norm(cross1) * \
                 np.linalg.norm(cross2)))/np.pi*180
             res.append(dihe)
-        else:
+
+        else: #  input error?
             res.append(np.nan)
+
+# information of the bond args in corresponding order
     return res
 
 def xyz2mat(xyz): # convert xyz information to numpy matrix
+# xyz: formal .xyz; result: numpy.array
+
     temp = list(map(lambda x:list(map(float,x.split()[-3:])),xyz[2:]))
     result = np.array([l for l in temp])
     return result
 
 def irc_processor(filenames,irc_bond_arg=[],write_xyz=True,write_rescsv=True,\
-    special_file=False): #Generate res_DF using irc.out
+    special_file=False): #!!The core function: Generate res_DF using irc.out
+
+# filenames::list/["str1","str2"...] the file(files) to be processed
+# irc_bond_arg::list/[(arg1),(arg2)] The bond args to be monitored along IRC
+# write_xyz::bool/ whether or not generate a frame-wise .xyz file of IRC
+# write_rescsv::bool/ whether or not generate a .csv file containing all the information
+# special_file::bool/ 
+# it could work to run the program in a ugly way when there are more than 1 IRC file describing the irc process
+# (I turned it to True when I did a debug)
+
     # Gaussian 16 output file line arguments
     irc_segl = "IRC-IRC-IRC-IRC-IRC-IRC-IRC-IRC-IRC-IRC-IRC-IRC-IRC-IRC-IRC-IRC-IRC-IRC"
 
@@ -231,8 +267,6 @@ def irc_processor(filenames,irc_bond_arg=[],write_xyz=True,write_rescsv=True,\
     # Read the irc geom segmentation position
     count =0
     seg_idx_list = []
-    # forward = 0
-    # backward = 0
     for i in range(len(cont)):
         cont[i] = cont[i].strip("\n").strip()
         if cont[i]==irc_segl:
@@ -242,8 +276,6 @@ def irc_processor(filenames,irc_bond_arg=[],write_xyz=True,write_rescsv=True,\
 
     # create and fill a list: irc_idx_list=[[irc.No,[raw_xyz,processed_xyz,scf]]*n]
     irc_idx_list = []
-    #print(len(cont))
-    #print(seg_idx_list)
     for i in range(len(seg_idx_list)):
         idx = seg_idx_list[i]
         if i>0: # The frame of ts is an exlusive frame
@@ -295,13 +327,27 @@ def irc_processor(filenames,irc_bond_arg=[],write_xyz=True,write_rescsv=True,\
     # convert res_df to csv file
     if write_rescsv:
         res_DF.to_csv("./irc_analysis_out/infoCSV_"+basename+".csv")
+
+# res_DF::pandas.Dataframe/ result Dataframe
+# irc_idx_list[0][1][-1]::list/ ele_id_lis
     return res_DF,irc_idx_list[0][1][-1]
 
 def cal_rmsd(coord_1, coord_2): # calculate RMSD between 2 geometry without alighnment 
+# coord_1::numpy.array/ coordinate(vector) No.1
+# coord_2::numpy.array/ coordinate(vector) No.2
+
     rmsd = np.sqrt(((coord_1 - coord_2) ** 2).mean())    ## this would be the formula
+
+# rmsd:: float
     return rmsd
 
 def fitting(df,arg1,arg2,kind="cubic",axis=0): # fitting 2 arguments, axis and kind to be specified
+# df::pandas.Dataframe/ The dataframe of data
+# arg1::any/ target label1
+# arg2::any/ target label2
+# kind::any/ the key word of interp1d choosing the algorithm
+# axis::int/ the key word of interp1d choosing the axis
+
     if arg1.lower()=="index":
         x = df.index
     else:
@@ -310,11 +356,14 @@ def fitting(df,arg1,arg2,kind="cubic",axis=0): # fitting 2 arguments, axis and k
         y = df.index
     else:
         y = np.array([l for l in df[arg2]])
-    #x = df[arg1]
-    #y = df[arg2]
+
+# interp1d(x, y, kind = kind,axis=axis)::scipy.interpolate._interpolate.interp1d/ the function
     return interp1d(x, y, kind = kind,axis=axis)
 
 def arr_eval(lis,print_arr=False): # Describe a list quickly
+# lis::list
+# print_arr::bool/ whether or not print the whold lis
+
     arr = np.array(lis)
 
     # measures of dispersion
@@ -336,7 +385,12 @@ def arr_eval(lis,print_arr=False): # Describe a list quickly
     print("Variance =", variance)
     print("Standard Deviation =", sd)
 
-def generate_xyz(frames,ele_id_lis,filename="generate_xyz.xyz",path_flag=True):
+def generate_xyz(frames,ele_id_lis,filename="generate_xyz.xyz",path_flag=True): #Generate a xyz file
+# frames::pd.core.series.Series or list or numpy.array/ xyz information
+# ele_id_lis::list/ elements with order of the molecule
+# filename::str/ the filename of output file
+# path_flag::bool/ specify the path 
+
     res = []
     if type(frames)==pd.core.series.Series:
         for i in range(len(frames)):
@@ -346,7 +400,7 @@ def generate_xyz(frames,ele_id_lis,filename="generate_xyz.xyz",path_flag=True):
                     res.append("\n")
                 temp = list(map(str,list(frames[i][j])))
                 res.append("    ".join([ele_id_lis[j]]+temp)+"\n")
-    else:
+    else: # list or numpy.array
         for j in range(len(frames)):
             if j==0:
                 res.append(str(len(frames))+"\n")
@@ -360,7 +414,14 @@ def generate_xyz(frames,ele_id_lis,filename="generate_xyz.xyz",path_flag=True):
     return
 
 def generate_gjf(frames,ele_id_lis,filename="generate_gjf",path_flag=True,suffix="",\
-    chg_spin="0 1 "):
+    chg_spin="0 1 "): # generate gjf files for each frame
+# frames::pd.core.series.Series or list or numpy.array/ xyz information
+# ele_id_lis::list/ elements with order of the molecule
+# filename::str/ the filename of output file
+# path_flag::bool/ specify the path 
+# suffix::str/ is there a line needed after geometry part?(why should I define this?)
+# chg_spin::str/ charge and spin information in .gjf
+
     res = []
     if type(frames)==pd.core.series.Series:
         for i in range(len(frames)):
@@ -393,6 +454,14 @@ def generate_gjf(frames,ele_id_lis,filename="generate_gjf",path_flag=True,suffix
     return
 
 def dicho_solve(func,limit,bond_arg,bond_id,ang=False,len_thresh=0.001,ang_thresh=0.1):
+    # use Bisection method to find corresponding xyz geom in fitted line
+# func::scipy.interpolate._interpolate.interp1d/ the function
+# limit:: [lower limit,upper limit]/ Define the range of finding solution
+# bond_arg::float/ target value for bond arg value
+# bond_id::tuple/ the investigated bond arg
+# ang::bool/ whether or not we are talking about an angle
+# len_thresh::float/ the threshold of finding solution for bond length
+# ang_thresh::float/ the threshold of finding solution for angle
     beg = limit[0]
     end = limit[1]
     if ang:
@@ -420,6 +489,9 @@ def dicho_solve(func,limit,bond_arg,bond_id,ang=False,len_thresh=0.001,ang_thres
 
     beg_value = compute_internal(func(beg),[bond_id],numpy_flag=True)[0]
     end_value = compute_internal(func(end),[bond_id],numpy_flag=True)[0]
+
+# result::numpy.array/ xyz matrix solution
+
     if np.sign(bond_arg-beg_value) != np.sign(bond_arg-end_value):
         result = beg
         return result

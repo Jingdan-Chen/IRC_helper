@@ -1,0 +1,98 @@
+#! D:\apps\Anaconda3\envs\normal\python
+# This is a bash script file for using xyz file to prepare for qchem EDA files
+
+import argparse
+import sys
+# arguments and default settings
+parser = argparse.ArgumentParser(
+    description='Using xyz file to prepare for qchem EDA files')
+try:
+    parser.add_argument('argment1', type=str,
+                        help='filename of input')
+    parser.add_argument('argment2', type=str,
+                        help='fragment1 atoms')              
+    parser.add_argument('--allcs', type=str, required=False,default="0 1 ",
+                        help='all charge and spin')
+    parser.add_argument('--frag1cs', type=str, required=False,default="0 1 ",
+                        help='frag1 charge and spin')
+    parser.add_argument('--frag2cs', type=str, required=False,default="0 1 ",
+                        help='frag2 charge and spin')
+except:
+    print("please confirm your input!")
+    sys.exit(1)
+
+try:
+    with open("spe_inp_temp","r") as f:
+        spe_template_cont = f.readlines()
+    with open("eda_inp_temp","r") as f:
+        eda_template_cont = f.readlines()
+except:
+    print("please create inp_temp file in current folder!")
+    sys.exit(1)
+
+args = parser.parse_args()
+
+filename = args.argment1.strip()
+basename, suffix = filename.split('.')
+assert suffix=="xyz"
+
+def processing_frag(string):
+    temp_lis = string.split(",")
+    res_lis = []
+    for item in temp_lis:
+        if "-" in item:
+            beg,end = list(map(int,item.split("-")))
+            res_lis = res_lis+list(range(beg,end+1))
+        else:
+            res_lis = res_lis+[int(item)]
+    #print(res_lis)
+    return res_lis
+
+def read_xyz(filename):
+    with open(filename,"r") as f:
+        cont = f.readlines()
+    return cont[2:]
+
+frag1_atom = processing_frag(args.argment2)
+all_atom_info = read_xyz(filename=filename)
+
+frag1_info = []
+frag2_info = []
+
+while len(all_atom_info[-1])<5:
+    all_atom_info = all_atom_info[:-1]
+#print(all_atom_info)
+
+for idx,line in enumerate(all_atom_info):
+    atomN = idx+1
+    if atomN in frag1_atom:
+        frag1_info.append(line)
+    else:
+        frag2_info.append(line)
+        
+'''
+with open(basename+"_spe.inp","w") as f:
+    temp_cont = ["$molecule\n",args.allcs+"\n"]+all_atom_info+["$end\n"]+["\n"]+\
+        spe_template_cont+["\n"]
+    f.writelines(temp_cont)
+
+
+with open(basename+"_frag1.inp","w") as f:
+    temp_cont = ["$molecule\n",args.frag1cs+"\n"]+frag1_info+["$end\n"]+["\n"]+\
+        spe_template_cont+["\n"]
+    f.writelines(temp_cont)
+
+with open(basename+"_frag2.inp","w") as f:
+    temp_cont = ["$molecule\n",args.frag2cs+"\n"]+frag2_info+["$end\n"]+["\n"]+\
+        spe_template_cont+["\n"]
+    f.writelines(temp_cont)
+'''
+
+with open(basename+"_eda.inp","w") as f:
+    temp_cont = ["$molecule\n",args.allcs+"\n","--\n",args.frag1cs+"\n"]+\
+        frag1_info+["--\n",args.frag2cs+"\n"]+frag2_info+["$end\n"]+["\n"]+\
+        eda_template_cont+["\n"]
+    f.writelines(temp_cont)
+
+
+

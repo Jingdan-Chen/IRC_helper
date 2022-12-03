@@ -1,0 +1,56 @@
+#!D:\apps\Anaconda3\envs\my-rdkit-env\python
+# This is a script to generate xyz from gjf
+
+import os
+import argparse
+import sys
+from time import time
+
+
+# Functions
+def read_gjf(file):
+    with open(file) as f:
+        f_cont = f.readlines()
+
+        row_swi = 0
+        command_end,geom_begin,geom_end=[None]*3
+        for i in range(len(f_cont)):
+            if f_cont[i]=='\n':
+                row_swi+=1
+            if row_swi==1 and command_end==None:
+                command_end=i
+            elif row_swi==2 and geom_begin==None:
+                geom_begin = i+2
+            elif row_swi==3:
+                geom_end = i
+                break
+        if geom_end==None:
+            geom_end=len(f_cont)
+    command1 = f_cont[:command_end]
+    title = f_cont[command_end+1]
+    sc = f_cont[geom_begin-1]
+    geom = f_cont[geom_begin:geom_end]
+    after_geom = f_cont[geom_end+1:]
+    return [command_end,geom_begin,geom_end,command1,title,sc,geom,after_geom,f_cont]
+        
+# arguments and default settings
+parser = argparse.ArgumentParser(
+    description='Using pybel to convert file')
+try:
+    parser.add_argument('argment1', type=str,
+                        help='filename of input')
+except:
+    print("please confirm your input!")
+    sys.exit(1)
+
+args = parser.parse_args()
+basename = '.'.join(args.argment1.split('.')[:-1])
+appendix = args.argment1.split('.')[-1]
+
+geom = read_gjf(args.argment1)[-3]
+with open(basename+'.xyz','w') as f:
+    f.write(str(len(geom))+"\n")
+    f.write("\n")
+    f.writelines(geom+["\n"])
+
+sys.exit(1)
