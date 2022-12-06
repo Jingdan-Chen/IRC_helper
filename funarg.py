@@ -276,6 +276,7 @@ def irc_processor(filenames,irc_bond_arg=[],write_xyz=True,write_rescsv=True,\
 
     # create and fill a list: irc_idx_list=[[irc.No,[raw_xyz,processed_xyz,scf]]*n]
     irc_idx_list = []
+    num=0
     for i in range(len(seg_idx_list)):
         idx = seg_idx_list[i]
         if i>0: # The frame of ts is an exlusive frame
@@ -291,11 +292,16 @@ def irc_processor(filenames,irc_bond_arg=[],write_xyz=True,write_rescsv=True,\
                     break
             if info_flag:
                 continue
+
             flag = temp.split()[4]
             try: 
                 num = int(temp.split()[2]) if flag=="FORWARD" else -1*int(temp.split()[2])
             except:
-                break 
+                flag = temp.split()[3]
+                try:  # abs(num)>=100
+                    num = int(temp.split()[1][-3:]) if flag=="FORWARD" else -1*int(temp.split()[1][-3:])
+                except:
+                    break
             
             if special_file and idx<file_segl:
                 num = num/100
