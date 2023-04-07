@@ -4,7 +4,7 @@
 
 This program is for processing IRC out file produced by Gaussian 16, fitting IRC curve, and generating EDA/single point computation file for Q-CHEM.
 
-Wei-Feng Zheng, **Jingdan Chen**, Xiaotian Qi*, Zhongxing Huang*. Asymmetric decarboxylative protonation enabled by an anchoring group that enhances noncovalent interactions. ()
+Wei-Feng Zheng, **Jingdan Chen**, Xiaotian Qi*, Zhongxing Huang*. Asymmetric decarboxylative protonation enabled by an anchoring group that enhances noncovalent interactions. (submitted)
 
 ## Files and Folders
 
