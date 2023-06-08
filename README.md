@@ -28,7 +28,7 @@ Here contains g16 IRC out file(s) to be read
 
 Hint:
 1) To get a complete IRC containing ts information, please do not read Hessian from check file;
-2) The code for multi-IRCfiles is not robust, please do not try it to ensure the outcome is correct.
+2) The code for multi-IRC files is not robust, please do not try it to ensure the outcome is correct.
 
 
 **Recommended IRC generation key words**:
