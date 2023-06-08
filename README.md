@@ -2,7 +2,7 @@
 
 ---
 
-This program is for processing IRC out file produced by Gaussian 16, fitting IRC curve, and generating EDA/single point computation file for Q-CHEM. To conduct energy decomposition analysis(EDA) along reaction path(or along IRC specifically), we have to solve the problem that IRC is discrete naturally. Here, we introduce cubic spline interpolation to help you. Our benchmark shows that our approach is better than popular constrained geometry optimization approach.
+This program is for processing IRC out file produced by Gaussian 16, fitting IRC curve, and generating EDA/single point computation file for Q-CHEM. To conduct energy decomposition analysis(EDA) along reaction path(or along IRC specifically), we have to solve the problem that IRC is discrete naturally. Here, we introduce cubic spline interpolation to help. Our benchmark shows that our approach is better than popular constrained geometry optimization approach.
 
 Wei-Feng Zheng, **Jingdan Chen**, Xiaotian Qi*, Zhongxing Huang*. Asymmetric decarboxylative protonation enabled by an anchoring group that enhances noncovalent interactions. (In Review)
 
